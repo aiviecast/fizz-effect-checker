@@ -1,0 +1,85 @@
+// wasm — kotodama / ブラウザの effect 検証 UI から呼ぶ。
+//   host がバッファに書く: 単一 effect / used(改行区切り)/ allowed(改行区切り)/ model。
+//   各バッファは from_list(to_list) コピー経由で文字列化(almide#690)。
+//   違反 effect 列・namespace/action は out_ptr で読む。
+import self as ec
+import bytes
+import float
+import int
+import list
+import string
+
+var g_eff: Bytes = bytes.new(0)
+var g_used: Bytes = bytes.new(0)
+var g_allowed: Bytes = bytes.new(0)
+var g_model: Bytes = bytes.new(0)
+var g_out: Bytes = bytes.new(0)
+
+@export(wasm, "eff_alloc")
+fn eff_alloc(len: Float) -> RawPtr = { g_eff = bytes.new(float.to_int(len)); bytes.as_mut_ptr(g_eff) }
+
+@export(wasm, "used_alloc")
+fn used_alloc(len: Float) -> RawPtr = { g_used = bytes.new(float.to_int(len)); bytes.as_mut_ptr(g_used) }
+
+@export(wasm, "allowed_alloc")
+fn allowed_alloc(len: Float) -> RawPtr = { g_allowed = bytes.new(float.to_int(len)); bytes.as_mut_ptr(g_allowed) }
+
+@export(wasm, "model_alloc")
+fn model_alloc(len: Float) -> RawPtr = { g_model = bytes.new(float.to_int(len)); bytes.as_mut_ptr(g_model) }
+
+@export(wasm, "out_ptr")
+fn out_ptr() -> RawPtr = bytes.as_mut_ptr(g_out)
+
+fn s_eff() -> String = bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_eff)))
+fn s_model() -> String = bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_model)))
+fn s_used() -> List[String] = string.split(bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_used))), "\n")
+fn s_allowed() -> List[String] = string.split(bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_allowed))), "\n")
+
+// model が非空なら allowed に llm.<model> を足した集合を使う。
+fn effective_allowed() -> List[String] = {
+  let m = s_model()
+  if m == "" then s_allowed() else ec.with_model(s_allowed(), m)
+}
+
+@export(wasm, "is_valid_effect")
+fn w_is_valid_effect() -> Float = if ec.is_valid_effect(s_eff()) then 1.0 else 0.0
+
+@export(wasm, "namespace_resolve")
+fn w_namespace() -> Float = {
+  let s = ec.namespace(s_eff())
+  g_out = bytes.from_string(s)
+  int.to_float(list.len(string.to_bytes(s)))
+}
+
+@export(wasm, "action_resolve")
+fn w_action() -> Float = {
+  let s = ec.action(s_eff())
+  g_out = bytes.from_string(s)
+  int.to_float(list.len(string.to_bytes(s)))
+}
+
+@export(wasm, "all_allowed")
+fn w_all_allowed() -> Float = if ec.all_allowed(s_used(), effective_allowed()) then 1.0 else 0.0
+
+@export(wasm, "violation_count")
+fn w_violation_count() -> Float = int.to_float(ec.violation_count(s_used(), effective_allowed()))
+
+// 違反 effect を改行区切りで g_out に書き、長さを返す。
+@export(wasm, "violations_resolve")
+fn w_violations() -> Float = {
+  let v = ec.violations(s_used(), effective_allowed())
+  let joined = string.join(v, "\n")
+  g_out = bytes.from_string(joined)
+  int.to_float(list.len(string.to_bytes(joined)))
+}
+
+effect fn main() -> Unit = {
+  let _a = eff_alloc(1.0)
+  let _b = used_alloc(1.0)
+  let _c = allowed_alloc(1.0)
+  let _d = model_alloc(1.0)
+  let _e = w_all_allowed()
+  let _f = w_violations()
+  let _g = out_ptr()
+  ()
+}

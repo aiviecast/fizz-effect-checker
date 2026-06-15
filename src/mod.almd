@@ -1,0 +1,74 @@
+// fizz_effect_checker — persona が宣言した effect のみ使用しているかの静的検証(§10 effect-checker)。
+//
+// 責務 (一行): 応答計画が使う effect 集合が、persona の spec.json effects.allowed(+ 実行時に
+// 足される llm.<model>)の許可集合に収まっているかを検証する。
+//
+// effect の実行(LLM 呼び出し等)は runtime = host、許可集合との包含検証は純粋なので Almide に
+// 集約=単一の正本。effect は "namespace.action"(例 "llm.invoke" / "llm.haiku")。
+// 移植元: openaituber kotodama (famulus_core Effect/EffectSet, eval.rs::PermitDeclared.permits /
+//   eval.rs:174 の allowed.insert("llm.<model>"))。
+
+import string
+import list
+
+// effect の namespace(最初の "." より前)。"." が無ければ全体。
+fn namespace(eff: String) -> String = match string.index_of(eff, ".") {
+  some(i) => string.slice(eff, 0, i),
+  none    => eff,
+}
+
+// effect の action(最初の "." より後)。"." が無ければ ""。
+fn action(eff: String) -> String = match string.index_of(eff, ".") {
+  some(i) => string.slice(eff, i + 1, string.len(eff)),
+  none    => "",
+}
+
+// effect 形式が妥当か(namespace と action がともに非空)。
+fn is_valid_effect(eff: String) -> Bool = namespace(eff) != "" and action(eff) != ""
+
+// allowed に runtime の llm.<model> を足した許可集合(eval.rs:174 相当)。重複は付けない。
+fn with_model(allowed: List[String], model: String) -> List[String] = {
+  let runtime = "llm." + model
+  if list.contains(allowed, runtime) then allowed else {
+    var acc: List[String] = []
+    var i = 0
+    let n = list.len(allowed)
+    while i < n {
+      list.push(acc, list.get_or(allowed, i, ""))
+      i = i + 1
+    }
+    list.push(acc, runtime)
+    acc
+  }
+}
+
+// 単一 effect が許可集合に含まれるか(完全一致)。
+fn is_allowed(eff: String, allowed: List[String]) -> Bool = list.contains(allowed, eff)
+
+// used がすべて allowed に含まれるか(used ⊆ allowed)。
+fn all_allowed(used: List[String], allowed: List[String]) -> Bool = {
+  var pass = true
+  var i = 0
+  let n = list.len(used)
+  while i < n {
+    if not list.contains(allowed, list.get_or(used, i, "")) then pass = false else {}
+    i = i + 1
+  }
+  pass
+}
+
+// allowed に無い used(違反 effect)を初出順で重複排除して返す。
+fn violations(used: List[String], allowed: List[String]) -> List[String] = {
+  var acc: List[String] = []
+  var i = 0
+  let n = list.len(used)
+  while i < n {
+    let e = list.get_or(used, i, "")
+    if not list.contains(allowed, e) then list.push(acc, e) else {}
+    i = i + 1
+  }
+  list.unique(acc)
+}
+
+// 違反 effect の数(重複排除後)。
+fn violation_count(used: List[String], allowed: List[String]) -> Int = list.len(violations(used, allowed))

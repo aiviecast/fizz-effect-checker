@@ -1,0 +1,4 @@
+[package]
+name = "fizz_effect_checker"
+version = "0.1.0"
+description = "Fizz effect checker — verify a plan's used effects are a subset of the persona's declared allowed set (+ runtime llm.<model>). Effect = namespace.action. Static check, no execution. One Almide core, native + wasm."

@@ -1,0 +1,26 @@
+// CLI エントリポイント (native) — effect 検証の目視確認。
+import self as ec
+import string
+import json
+import value
+
+effect fn main() -> Unit = {
+  // shizuku spec.json: effects.allowed = ["llm.invoke", "llm.haiku"]
+  let allowed = ["llm.invoke", "llm.haiku"]
+  let allowed2 = ec.with_model(allowed, "haiku")        // 既存なので増えない
+  let allowed3 = ec.with_model(allowed, "sonnet")       // llm.sonnet が増える
+  let used_ok = ["llm.invoke"]
+  let used_bad = ["llm.invoke", "fs.write", "net.fetch"]
+  println(json.stringify(value.object([
+    ("ns", value.str(ec.namespace("llm.invoke"))),
+    ("action", value.str(ec.action("llm.invoke"))),
+    ("valid", value.bool(ec.is_valid_effect("llm.invoke"))),
+    ("invalid_nodot", value.bool(ec.is_valid_effect("bareword"))),
+    ("with_model_same_len", value.int(list.len(allowed2))),
+    ("with_model_add_len", value.int(list.len(allowed3))),
+    ("all_allowed_ok", value.bool(ec.all_allowed(used_ok, allowed))),
+    ("all_allowed_bad", value.bool(ec.all_allowed(used_bad, allowed))),
+    ("violations", value.str(string.join(ec.violations(used_bad, allowed), ","))),
+    ("violation_count", value.int(ec.violation_count(used_bad, allowed))),
+  ])))
+}

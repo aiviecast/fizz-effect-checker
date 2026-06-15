@@ -1,0 +1,53 @@
+import self as ec
+import string
+import list
+
+fn allowed() -> List[String] = ["llm.invoke", "llm.haiku"]
+
+test "namespace / action / is_valid_effect" {
+  assert_eq(ec.namespace("llm.invoke"), "llm")
+  assert_eq(ec.action("llm.invoke"), "invoke")
+  assert_eq(ec.namespace("fs.write"), "fs")
+  assert_eq(ec.action("fs.write"), "write")
+  assert_eq(ec.is_valid_effect("llm.invoke"), true)
+  assert_eq(ec.is_valid_effect("bareword"), false)   // "." 無し
+  assert_eq(ec.is_valid_effect("llm."), false)        // action 空
+  assert_eq(ec.is_valid_effect(".action"), false)     // namespace 空
+}
+
+test "is_allowed" {
+  assert_eq(ec.is_allowed("llm.invoke", allowed()), true)
+  assert_eq(ec.is_allowed("fs.write", allowed()), false)
+}
+
+test "with_model: llm.<model> を足す(重複は付けない)" {
+  // 既存の haiku → 増えない
+  let a1 = ec.with_model(allowed(), "haiku")
+  assert_eq(list.len(a1), 2)
+  // 新規 sonnet → 増える
+  let a2 = ec.with_model(allowed(), "sonnet")
+  assert_eq(list.len(a2), 3)
+  assert_eq(list.contains(a2, "llm.sonnet"), true)
+}
+
+test "all_allowed: used ⊆ allowed" {
+  assert_eq(ec.all_allowed(["llm.invoke"], allowed()), true)
+  assert_eq(ec.all_allowed(["llm.invoke", "llm.haiku"], allowed()), true)
+  assert_eq(ec.all_allowed(["llm.invoke", "fs.write"], allowed()), false)
+  assert_eq(ec.all_allowed([], allowed()), true)   // 空 used は常に OK
+}
+
+test "all_allowed: runtime model 込み" {
+  // llm.sonnet は宣言に無いが、with_model で許可すれば通る(eval.rs:174 相当)
+  assert_eq(ec.all_allowed(["llm.sonnet"], allowed()), false)
+  assert_eq(ec.all_allowed(["llm.sonnet"], ec.with_model(allowed(), "sonnet")), true)
+}
+
+test "violations / violation_count" {
+  let used = ["llm.invoke", "fs.write", "net.fetch", "fs.write"]
+  let v = ec.violations(used, allowed())
+  // fs.write(重複は 1 回), net.fetch
+  assert_eq(string.join(v, ","), "fs.write,net.fetch")
+  assert_eq(ec.violation_count(used, allowed()), 2)
+  assert_eq(ec.violation_count(["llm.invoke"], allowed()), 0)
+}
