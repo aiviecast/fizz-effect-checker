@@ -12,15 +12,15 @@ effect fn main() -> Unit = {
   let used_ok = ["llm.invoke"]
   let used_bad = ["llm.invoke", "fs.write", "net.fetch"]
   println(json.stringify(value.object([
-    ("ns", value.str(ec.namespace("llm.invoke"))),
-    ("action", value.str(ec.action("llm.invoke"))),
+    ("ns", value.string(ec.namespace("llm.invoke"))),
+    ("action", value.string(ec.action("llm.invoke"))),
     ("valid", value.bool(ec.is_valid_effect("llm.invoke"))),
     ("invalid_nodot", value.bool(ec.is_valid_effect("bareword"))),
     ("with_model_same_len", value.int(list.len(allowed2))),
     ("with_model_add_len", value.int(list.len(allowed3))),
     ("all_allowed_ok", value.bool(ec.all_allowed(used_ok, allowed))),
     ("all_allowed_bad", value.bool(ec.all_allowed(used_bad, allowed))),
-    ("violations", value.str(string.join(ec.violations(used_bad, allowed), ","))),
+    ("violations", value.string(list.join(ec.violations(used_bad, allowed), ","))),
     ("violation_count", value.int(ec.violation_count(used_bad, allowed))),
   ])))
 }

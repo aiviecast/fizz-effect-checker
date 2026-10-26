@@ -47,7 +47,7 @@ test "violations / violation_count" {
   let used = ["llm.invoke", "fs.write", "net.fetch", "fs.write"]
   let v = ec.violations(used, allowed())
   // fs.write(重複は 1 回), net.fetch
-  assert_eq(string.join(v, ","), "fs.write,net.fetch")
+  assert_eq(list.join(v, ","), "fs.write,net.fetch")
   assert_eq(ec.violation_count(used, allowed()), 2)
   assert_eq(ec.violation_count(["llm.invoke"], allowed()), 0)
 }
