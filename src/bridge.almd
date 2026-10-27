@@ -4,6 +4,7 @@
 //   違反 effect 列・namespace/action は out_ptr で読む。
 import self as ec
 import bytes
+import ffi
 import float
 import int
 import list
@@ -16,19 +17,19 @@ var g_model: Bytes = bytes.zeros(0)
 var g_out: Bytes = bytes.zeros(0)
 
 @export(wasm, "eff_alloc")
-fn eff_alloc(len: Float) -> RawPtr = { g_eff = bytes.zeros(int.from_saturating(len)); bytes.as_mut_ptr(g_eff) }
+fn eff_alloc(len: Float) -> RawPtr = { g_eff = bytes.zeros(int.from_saturating(len)); ffi.address(g_eff) }
 
 @export(wasm, "used_alloc")
-fn used_alloc(len: Float) -> RawPtr = { g_used = bytes.zeros(int.from_saturating(len)); bytes.as_mut_ptr(g_used) }
+fn used_alloc(len: Float) -> RawPtr = { g_used = bytes.zeros(int.from_saturating(len)); ffi.address(g_used) }
 
 @export(wasm, "allowed_alloc")
-fn allowed_alloc(len: Float) -> RawPtr = { g_allowed = bytes.zeros(int.from_saturating(len)); bytes.as_mut_ptr(g_allowed) }
+fn allowed_alloc(len: Float) -> RawPtr = { g_allowed = bytes.zeros(int.from_saturating(len)); ffi.address(g_allowed) }
 
 @export(wasm, "model_alloc")
-fn model_alloc(len: Float) -> RawPtr = { g_model = bytes.zeros(int.from_saturating(len)); bytes.as_mut_ptr(g_model) }
+fn model_alloc(len: Float) -> RawPtr = { g_model = bytes.zeros(int.from_saturating(len)); ffi.address(g_model) }
 
 @export(wasm, "out_ptr")
-fn out_ptr() -> RawPtr = bytes.as_mut_ptr(g_out)
+fn out_ptr() -> RawPtr = ffi.address(g_out)
 
 fn s_eff() -> String = bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_eff)))
 fn s_model() -> String = bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_model)))
