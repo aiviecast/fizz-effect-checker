@@ -10,77 +10,77 @@ import int
 import list
 import string
 
-var g_eff: Bytes = bytes.zeros(0)
-var g_used: Bytes = bytes.zeros(0)
-var g_allowed: Bytes = bytes.zeros(0)
-var g_model: Bytes = bytes.zeros(0)
+var g_eff: Region = ffi.region(bytes.new())
+var g_used: Region = ffi.region(bytes.new())
+var g_allowed: Region = ffi.region(bytes.new())
+var g_model: Region = ffi.region(bytes.new())
 var g_out: Bytes = bytes.zeros(0)
 
-@export(wasm, "eff_alloc")
-fn eff_alloc(len: Float) -> RawPtr = { g_eff = bytes.zeros(int.from_saturating(len)); ffi.address(g_eff) }
+@export(wasm, "eff_alloc", returns: address)
+effect fn eff_alloc(len: Float) -> Region = { g_eff = ffi.alloc(int.from_saturating(len))!; g_eff }
 
-@export(wasm, "used_alloc")
-fn used_alloc(len: Float) -> RawPtr = { g_used = bytes.zeros(int.from_saturating(len)); ffi.address(g_used) }
+@export(wasm, "used_alloc", returns: address)
+effect fn used_alloc(len: Float) -> Region = { g_used = ffi.alloc(int.from_saturating(len))!; g_used }
 
-@export(wasm, "allowed_alloc")
-fn allowed_alloc(len: Float) -> RawPtr = { g_allowed = bytes.zeros(int.from_saturating(len)); ffi.address(g_allowed) }
+@export(wasm, "allowed_alloc", returns: address)
+effect fn allowed_alloc(len: Float) -> Region = { g_allowed = ffi.alloc(int.from_saturating(len))!; g_allowed }
 
-@export(wasm, "model_alloc")
-fn model_alloc(len: Float) -> RawPtr = { g_model = bytes.zeros(int.from_saturating(len)); ffi.address(g_model) }
+@export(wasm, "model_alloc", returns: address)
+effect fn model_alloc(len: Float) -> Region = { g_model = ffi.alloc(int.from_saturating(len))!; g_model }
 
-@export(wasm, "out_ptr")
-fn out_ptr() -> RawPtr = ffi.address(g_out)
+@export(wasm, "out_ptr", returns: address)
+fn out_ptr() -> Region = ffi.region(g_out)
 
-fn s_eff() -> String = bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_eff)))
-fn s_model() -> String = bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_model)))
-fn s_used() -> List[String] = string.split(bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_used))), "\n")
-fn s_allowed() -> List[String] = string.split(bytes.to_string_lossy(bytes.from_list(bytes.to_list(g_allowed))), "\n")
+effect fn s_eff() -> String = bytes.to_string_lossy(ffi.to_bytes(g_eff)!)
+effect fn s_model() -> String = bytes.to_string_lossy(ffi.to_bytes(g_model)!)
+effect fn s_used() -> List[String] = string.split(bytes.to_string_lossy(ffi.to_bytes(g_used)!), "\n")
+effect fn s_allowed() -> List[String] = string.split(bytes.to_string_lossy(ffi.to_bytes(g_allowed)!), "\n")
 
 // model が非空なら allowed に llm.<model> を足した集合を使う。
-fn effective_allowed() -> List[String] = {
-  let m = s_model()
-  if m == "" then s_allowed() else ec.with_model(s_allowed(), m)
+effect fn effective_allowed() -> List[String] = {
+  let m = s_model()!
+  if m == "" then s_allowed()! else ec.with_model(s_allowed()!, m)
 }
 
 @export(wasm, "is_valid_effect")
-fn w_is_valid_effect() -> Float = if ec.is_valid_effect(s_eff()) then 1.0 else 0.0
+effect fn w_is_valid_effect() -> Float = if ec.is_valid_effect(s_eff()!) then 1.0 else 0.0
 
 @export(wasm, "namespace_resolve")
-fn w_namespace() -> Float = {
-  let s = ec.namespace(s_eff())
+effect fn w_namespace() -> Float = {
+  let s = ec.namespace(s_eff()!)
   g_out = bytes.from_string(s)
   float.from(list.len(bytes.to_list(bytes.from_string(s))))
 }
 
 @export(wasm, "action_resolve")
-fn w_action() -> Float = {
-  let s = ec.action(s_eff())
+effect fn w_action() -> Float = {
+  let s = ec.action(s_eff()!)
   g_out = bytes.from_string(s)
   float.from(list.len(bytes.to_list(bytes.from_string(s))))
 }
 
 @export(wasm, "all_allowed")
-fn w_all_allowed() -> Float = if ec.all_allowed(s_used(), effective_allowed()) then 1.0 else 0.0
+effect fn w_all_allowed() -> Float = if ec.all_allowed(s_used()!, effective_allowed()!) then 1.0 else 0.0
 
 @export(wasm, "violation_count")
-fn w_violation_count() -> Float = float.from(ec.violation_count(s_used(), effective_allowed()))
+effect fn w_violation_count() -> Float = float.from(ec.violation_count(s_used()!, effective_allowed()!))
 
 // 違反 effect を改行区切りで g_out に書き、長さを返す。
 @export(wasm, "violations_resolve")
-fn w_violations() -> Float = {
-  let v = ec.violations(s_used(), effective_allowed())
+effect fn w_violations() -> Float = {
+  let v = ec.violations(s_used()!, effective_allowed()!)
   let joined = list.join(v, "\n")
   g_out = bytes.from_string(joined)
   float.from(list.len(bytes.to_list(bytes.from_string(joined))))
 }
 
 effect fn main() -> Unit = {
-  let _a = eff_alloc(1.0)
-  let _b = used_alloc(1.0)
-  let _c = allowed_alloc(1.0)
-  let _d = model_alloc(1.0)
-  let _e = w_all_allowed()
-  let _f = w_violations()
+  let _a = eff_alloc(1.0)!
+  let _b = used_alloc(1.0)!
+  let _c = allowed_alloc(1.0)!
+  let _d = model_alloc(1.0)!
+  let _e = w_all_allowed()!
+  let _f = w_violations()!
   let _g = out_ptr()
   ()
 }
