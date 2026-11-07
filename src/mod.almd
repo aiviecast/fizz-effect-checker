@@ -34,7 +34,7 @@ fn with_model(allowed: List[String], model: String) -> List[String] = {
     var i = 0
     let n = list.len(allowed)
     while i < n {
-      list.push(acc, list.get_or(allowed, i, ""))
+      list.push(acc, list.get(allowed, i) ?? "")
       i = i + 1
     }
     list.push(acc, runtime)
@@ -51,7 +51,7 @@ fn all_allowed(used: List[String], allowed: List[String]) -> Bool = {
   var i = 0
   let n = list.len(used)
   while i < n {
-    if not list.contains(allowed, list.get_or(used, i, "")) then pass = false else {}
+    if not list.contains(allowed, list.get(used, i) ?? "") then pass = false else {}
     i = i + 1
   }
   pass
@@ -63,7 +63,7 @@ fn violations(used: List[String], allowed: List[String]) -> List[String] = {
   var i = 0
   let n = list.len(used)
   while i < n {
-    let e = list.get_or(used, i, "")
+    let e = list.get(used, i) ?? ""
     if not list.contains(allowed, e) then list.push(acc, e) else {}
     i = i + 1
   }
