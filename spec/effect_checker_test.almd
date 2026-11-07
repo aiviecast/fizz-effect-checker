@@ -1,5 +1,4 @@
 import self as ec
-import string
 import list
 
 fn allowed() -> List[String] = ["llm.invoke", "llm.haiku"]

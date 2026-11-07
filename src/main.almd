@@ -1,6 +1,5 @@
 // CLI エントリポイント (native) — effect 検証の目視確認。
 import self as ec
-import string
 import json
 import value
 
